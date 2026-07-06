@@ -11,12 +11,12 @@ vala_lib_deps = [
 ]
 
 vala_lib = shared_library(
-  'vala-library-template',
+  'vala-downloader-lib',
   lib_sources,
   dependencies: vala_lib_deps,
   install: true,
-  vala_vapi: 'vala-library-template.vapi',
-  vala_header: 'vala-library-template.h'
+  vala_vapi: 'vala-downloader-lib.vapi',
+  vala_header: 'vala-downloader-lib.h'
 )
 
 vala_lib_dep = declare_dependency(
@@ -29,7 +29,7 @@ pkg = import('pkgconfig')
 pkg.generate(
   vala_lib,
   version: '1.0',
-  name: 'vala-library-template',
-  filebase: 'vala-library-template',
+  name: 'vala-downloader-lib',
+  filebase: 'vala-downloader-lib',
   description: 'Vala Library Template.'
 )
