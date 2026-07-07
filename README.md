@@ -24,7 +24,7 @@ A small Vala library for downloading files with optional speed limiting.
 
 ## Public API (summary)
 
-Namespace: `Downloader`
+Namespace: `ValaFoundation.Downloader`
 
 - `Manager`
   - `download(string url, string dest_path) -> Result`
@@ -49,7 +49,7 @@ Namespace: `Downloader`
 ## Example: synchronous download
 
 ```vala
-using Downloader;
+using ValaFoundation.Downloader;
 
 int main (string[] args) {
 	var manager = new Manager ();
@@ -79,7 +79,7 @@ int main (string[] args) {
 ## Example: asynchronous download
 
 ```vala
-using Downloader;
+using ValaFoundation.Downloader;
 
 public async int run_async () {
 	var manager = new Manager ();
@@ -130,7 +130,7 @@ executable('my-app',
 Then in Vala code:
 
 ```vala
-using Downloader;
+using ValaFoundation.Downloader;
 ```
 
 ### Option 2: Installed library (pkg-config)

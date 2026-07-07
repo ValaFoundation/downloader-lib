@@ -1,4 +1,4 @@
-namespace Downloader {
+namespace ValaFoundation.Downloader {
     public class Manager : Object {
         // Limit rychlosti v bajtech za sekundu (0 = bez limitu)
         public int64 speed_limit_bps { get; set; default = 0; }
@@ -17,15 +17,15 @@ namespace Downloader {
         }
 
         public void set_speed_limit_in_kilobytes (int64 kilobytes_per_second) {
-            this.speed_limit_bps = kilobytes_per_second * Downloader.KILOBYTE;
+            this.speed_limit_bps = kilobytes_per_second * ValaFoundation.Downloader.KILOBYTE;
         }
 
         public void set_speed_limit_in_megabytes (int64 megabytes_per_second) {
-            this.speed_limit_bps = megabytes_per_second * Downloader.MEGABYTE;
+            this.speed_limit_bps = megabytes_per_second * ValaFoundation.Downloader.MEGABYTE;
         }
 
         public void set_speed_limit_in_gigabytes (int64 gigabytes_per_second) {
-            this.speed_limit_bps = gigabytes_per_second * Downloader.GIGABYTE;
+            this.speed_limit_bps = gigabytes_per_second * ValaFoundation.Downloader.GIGABYTE;
         }
 
         private Result build_result (Soup.Message message, int64 total_bytes, int64 start_time_us, int64 content_length) {

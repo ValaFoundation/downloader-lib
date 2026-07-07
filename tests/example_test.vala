@@ -1,7 +1,7 @@
 namespace AppTests {
     using GLib;
-    using Downloader;
-    using Testcases;
+    using ValaFoundation.Downloader;
+    using ValaFoundation.Testcases;
 
     public class ExampleTest : BaseTest {
         construct {
