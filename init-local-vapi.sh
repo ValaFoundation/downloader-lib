@@ -8,6 +8,7 @@ NC='\033[0m'
 
 REPO_URL="${VALA_DOWNLOADER_REPO_URL:-https://github.com/JanGalek/vala-downloader-lib.git}"
 REPO_REF="${VALA_DOWNLOADER_REF:-master}"
+GITHUB_REPO="${VALA_DOWNLOADER_GITHUB_REPO:-JanGalek/vala-downloader-lib}"
 
 PROJECT_ROOT="${1:-$PWD}"
 MESON_FILE="${PROJECT_ROOT}/meson.build"
@@ -36,25 +37,59 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo -e "${BLUE}==> Cloning source...${NC}"
-git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${TMP_DIR}/src" >/dev/null 2>&1
+SOURCE_DIR=""
 
-echo -e "${BLUE}==> Building release artifacts...${NC}"
-meson setup "${TMP_DIR}/build" "${TMP_DIR}/src" --buildtype=release >/dev/null
-meson compile -C "${TMP_DIR}/build" >/dev/null
+try_download_release_zip() {
+  local out_zip="$1"
+  local tag_zip_url="https://github.com/${GITHUB_REPO}/releases/download/${REPO_REF}/vala-downloader-lib-${REPO_REF}-linux.zip"
+  if curl -fsSL "${tag_zip_url}" -o "${out_zip}"; then
+    return 0
+  fi
 
-SOURCE_VAPI="${TMP_DIR}/build/src/vapi/vala-downloader-lib.vapi"
-SOURCE_HEADER="${TMP_DIR}/build/src/vala-downloader-lib.h"
+  local latest_api_url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+  local latest_zip_url
+  latest_zip_url="$(curl -fsSL "${latest_api_url}" | grep -o 'https://[^\"]*vala-downloader-lib-[^\"]*-linux\.zip' | head -n 1 || true)"
+  if [ -n "${latest_zip_url}" ] && curl -fsSL "${latest_zip_url}" -o "${out_zip}"; then
+    return 0
+  fi
 
-if [ ! -f "${SOURCE_VAPI}" ] || [ ! -f "${SOURCE_HEADER}" ]; then
-    echo -e "${RED}[Error] Build artifacts were not generated as expected.${NC}"
+  return 1
+}
+
+RELEASE_ZIP="${TMP_DIR}/release.zip"
+if try_download_release_zip "${RELEASE_ZIP}"; then
+  if ! command -v unzip >/dev/null 2>&1; then
+    echo -e "${RED}[Error] unzip is required to extract release bundle.${NC}"
     exit 1
+  fi
+
+  echo -e "${BLUE}==> Using prebuilt release ZIP...${NC}"
+  mkdir -p "${TMP_DIR}/bundle"
+  unzip -q "${RELEASE_ZIP}" -d "${TMP_DIR}/bundle"
+  SOURCE_DIR="${TMP_DIR}/bundle"
+else
+  echo -e "${BLUE}==> Release ZIP not found, building from source...${NC}"
+  echo -e "${BLUE}==> Cloning source...${NC}"
+  git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "${TMP_DIR}/src" >/dev/null 2>&1
+
+  echo -e "${BLUE}==> Building release artifacts...${NC}"
+  meson setup "${TMP_DIR}/build" "${TMP_DIR}/src" --buildtype=release >/dev/null
+  meson compile -C "${TMP_DIR}/build" >/dev/null
+  SOURCE_DIR="${TMP_DIR}/build/src"
+fi
+
+SOURCE_VAPI="${SOURCE_DIR}/vapi/vala-downloader-lib.vapi"
+SOURCE_HEADER="${SOURCE_DIR}/vala-downloader-lib.h"
+
+if [ ! -f "${SOURCE_VAPI}" ] || [ ! -f "${SOURCE_HEADER}" ] || ! compgen -G "${SOURCE_DIR}/libvala-downloader-lib.so*" > /dev/null; then
+  echo -e "${RED}[Error] Expected artifacts were not found.${NC}"
+  exit 1
 fi
 
 echo -e "${BLUE}==> Copying artifacts...${NC}"
 cp "${SOURCE_VAPI}" "${VAPI_DIR}/"
 cp "${SOURCE_HEADER}" "${INCLUDE_DIR}/"
-cp -a "${TMP_DIR}/build/src"/libvala-downloader-lib.so* "${LIB_DIR}/"
+cp -a "${SOURCE_DIR}"/libvala-downloader-lib.so* "${LIB_DIR}/"
 
 if ! grep -Fq "${START_MARKER}" "${MESON_FILE}"; then
     echo -e "${BLUE}==> Appending helper block to meson.build...${NC}"

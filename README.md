@@ -75,7 +75,8 @@ curl -sSfL https://raw.githubusercontent.com/JanGalek/vala-downloader-lib/master
 
 The script will:
 
-- build `vala-downloader-lib` from source
+- download a prebuilt release ZIP when available (fast path)
+- fallback to building `vala-downloader-lib` from source when release assets are unavailable
 - copy artifacts into your local `vapi/`, `lib/`, and `include/` directories
 - append an idempotent helper block to your `meson.build` with reusable variables
 
