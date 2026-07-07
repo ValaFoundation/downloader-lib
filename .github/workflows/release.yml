@@ -66,7 +66,6 @@ jobs:
           PREVIOUS_TAG="$(git tag --sort=-creatordate | grep -v "^${CURRENT_TAG}$" | head -n 1 || true)"
 
           {
-            echo "# Release ${CURRENT_TAG}"
             echo
             echo "## Changes"
             echo
