@@ -11,3 +11,4 @@ int main (string[] args) {
 
     return Test.run ();
 }
+
