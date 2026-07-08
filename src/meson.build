@@ -22,8 +22,7 @@ vala_downloader_lib = shared_library(
 
 vala_downloader_dep = declare_dependency(
   link_with: vala_downloader_lib,
-  include_directories: include_directories('.'),
-  sources: downloader_lib_sources
+  include_directories: include_directories('.')
 )
 
 pkg = import('pkgconfig')

@@ -33,7 +33,7 @@ revision = master
 depth = 1
 
 [provide]
-dependency_name = vala_downloader
+vala_downloader = vala_downloader_dep
 EOF
 
 echo -e "${GREEN}[Done] Wrap file has been successfully created.${NC}\n"
