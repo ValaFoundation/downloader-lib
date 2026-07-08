@@ -8,6 +8,7 @@ A small Vala library for downloading files with optional speed limiting.
 - [Public API (summary)](#public-api-summary)
 - [Example: synchronous download](#example-synchronous-download)
 - [Example: asynchronous download](#example-asynchronous-download)
+- [Example: queued downloads (multiple files)](#example-queued-downloads-multiple-files)
 - [Use In Other Projects](#use-in-other-projects)
 - [Quick init (dependency setup)](#quick-init-dependency-setup)
 - [Build](#build)
@@ -29,10 +30,25 @@ Namespace: `ValaFoundation.Downloader`
 - `Manager`
   - `download(string url, string dest_path) -> Result`
   - `download_async(string url, string dest_path) -> Result`
+	- `add_to_download(string url, string dest_path)`
+	- `download_queued(bool clear_after_download = true) -> Gee.ArrayList<BatchDownloadResult>`
+	- `download_queued_async(bool clear_after_download = true) -> Gee.ArrayList<BatchDownloadResult>`
+	- `clear_download_queue()`
+	- `download_many(Gee.List<DownloadRequest>) -> Gee.ArrayList<BatchDownloadResult>`
+	- `download_many_async(Gee.List<DownloadRequest>) -> Gee.ArrayList<BatchDownloadResult>`
   - `set_speed_limit_in_bytes(int64)`
   - `set_speed_limit_in_kilobytes(int64)`
   - `set_speed_limit_in_megabytes(int64)`
   - `set_speed_limit_in_gigabytes(int64)`
+- `DownloadRequest`
+	- `url` (`string`)
+	- `dest_path` (`string`)
+- `BatchDownloadResult`
+	- `url` (`string`)
+	- `dest_path` (`string`)
+	- `result` (`Result?`)
+	- `error_message` (`string?`)
+	- `is_successful` (`bool`)
 - `Result`
   - `is_downloaded` (`bool`)
   - `actual_speed_bps` (`int64`)
@@ -105,6 +121,46 @@ public async int run_async () {
 	}
 }
 ```
+
+## Example: queued downloads (multiple files)
+
+```vala
+using ValaFoundation.Downloader;
+
+public async int run_batch_async () {
+	var manager = new Manager ();
+
+	manager.add_to_download ("https://example.com/file-a.zip", "/tmp/file-a.zip");
+	manager.add_to_download ("https://example.com/file-b.zip", "/tmp/file-b.zip");
+	manager.add_to_download ("https://example.com/file-c.zip", "/tmp/file-c.zip");
+
+	var results = yield manager.download_queued_async ();
+
+	foreach (var item in results) {
+		if (item.error_message != null) {
+			stderr.printf ("%s -> failed: %s\n", item.url, item.error_message);
+			continue;
+		}
+
+		if (item.result == null || !item.result.is_downloaded) {
+			uint status = item.result != null ? item.result.status_code : 0;
+			stderr.printf ("%s -> HTTP status: %u\n", item.url, status);
+			continue;
+		}
+
+		stdout.printf (
+			"%s -> ok, speed=%" + int64.FORMAT + " B/s, remaining=%" + int64.FORMAT + " s\n",
+			item.url,
+			item.result.actual_speed_bps,
+			item.result.remaining_time
+		);
+	}
+
+	return 0;
+}
+```
+
+Note: For unsuccessful downloads, `remaining_time` is `-1` (unknown).
 
 ## Use In Other Projects
 

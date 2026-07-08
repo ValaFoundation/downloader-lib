@@ -1,4 +1,30 @@
 namespace ValaFoundation.Downloader {
+    public class DownloadRequest : Object {
+        public string url { get; construct set; }
+        public string dest_path { get; construct set; }
+
+        public DownloadRequest (string url, string dest_path) {
+            Object (url: url, dest_path: dest_path);
+        }
+    }
+
+    public class BatchDownloadResult : Object {
+        public string url { get; construct set; }
+        public string dest_path { get; construct set; }
+        public Result? result { get; set; default = null; }
+        public string? error_message { get; set; default = null; }
+
+        public bool is_successful {
+            get {
+                return this.error_message == null && this.result != null && this.result.is_downloaded;
+            }
+        }
+
+        public BatchDownloadResult (string url, string dest_path) {
+            Object (url: url, dest_path: dest_path);
+        }
+    }
+
     public class Manager : Object {
         // Limit rychlosti v bajtech za sekundu (0 = bez limitu)
         public int64 speed_limit_bps { get; set; default = 0; }
@@ -6,10 +32,20 @@ namespace ValaFoundation.Downloader {
         private int64 multiplier { get; set; default = 1; }
 
         private Soup.Session session;
+        private Gee.ArrayList<DownloadRequest> download_queue;
 
         public Manager () {
             this.session = new Soup.Session ();
             this.session.user_agent = "Vala-Downloader/1.0";
+            this.download_queue = new Gee.ArrayList<DownloadRequest> ();
+        }
+
+        public void add_to_download (string url, string dest_path) {
+            this.download_queue.add (new DownloadRequest (url, dest_path));
+        }
+
+        public void clear_download_queue () {
+            this.download_queue.clear ();
         }
 
         public void set_speed_limit_in_bytes (int64 bytes_per_second) {
@@ -38,9 +74,12 @@ namespace ValaFoundation.Downloader {
                 result.actual_speed_bps = (total_bytes * 1000000) / elapsed_us;
             }
 
-            if (result.is_downloaded || (content_length > 0 && total_bytes >= content_length)) {
+            // Remaining time is only meaningful for successful downloads.
+            if (!result.is_downloaded) {
+                result.remaining_time = -1;
+            } else if (content_length <= 0 || total_bytes >= content_length) {
                 result.remaining_time = 0;
-            } else if (content_length > 0 && result.actual_speed_bps > 0 && total_bytes < content_length) {
+            } else if (result.actual_speed_bps > 0) {
                 int64 remaining_bytes = content_length - total_bytes;
                 result.remaining_time = (remaining_bytes + result.actual_speed_bps - 1) / result.actual_speed_bps;
             } else {
@@ -153,6 +192,104 @@ namespace ValaFoundation.Downloader {
             yield output_stream.close_async (Priority.DEFAULT, null);
 
             return build_result (message, total_bytes, start_time, content_length);
+        }
+
+        public Gee.ArrayList<BatchDownloadResult> download_many (Gee.List<DownloadRequest> requests) {
+            var results = new Gee.ArrayList<BatchDownloadResult> ();
+
+            foreach (var request in requests) {
+                var item_result = new BatchDownloadResult (request.url, request.dest_path);
+
+                try {
+                    item_result.result = download (request.url, request.dest_path);
+                } catch (Error e) {
+                    item_result.error_message = e.message;
+                }
+
+                results.add (item_result);
+            }
+
+            return results;
+        }
+
+        public Gee.ArrayList<BatchDownloadResult> download_queued (bool clear_after_download = true) {
+            var queued_requests = new Gee.ArrayList<DownloadRequest> ();
+
+            foreach (var request in this.download_queue) {
+                queued_requests.add (request);
+            }
+
+            var results = download_many (queued_requests);
+
+            if (clear_after_download) {
+                this.download_queue.clear ();
+            }
+
+            return results;
+        }
+
+        public async Gee.ArrayList<BatchDownloadResult> download_many_async (Gee.List<DownloadRequest> requests) {
+            var ordered_results = new BatchDownloadResult?[requests.size];
+            int pending = requests.size;
+
+            if (pending == 0) {
+                return new Gee.ArrayList<BatchDownloadResult> ();
+            }
+
+            var loop = new MainLoop (null, false);
+            int index = 0;
+
+            foreach (var request in requests) {
+                int current_index = index;
+                string current_url = request.url;
+                string current_dest_path = request.dest_path;
+
+                download_async.begin (current_url, current_dest_path, (obj, res) => {
+                    var item_result = new BatchDownloadResult (current_url, current_dest_path);
+
+                    try {
+                        item_result.result = download_async.end (res);
+                    } catch (Error e) {
+                        item_result.error_message = e.message;
+                    }
+
+                    ordered_results[current_index] = item_result;
+                    pending--;
+
+                    if (pending == 0) {
+                        loop.quit ();
+                    }
+                });
+
+                index++;
+            }
+
+            loop.run ();
+
+            var results = new Gee.ArrayList<BatchDownloadResult> ();
+            foreach (var item_result in ordered_results) {
+                if (item_result != null) {
+                    results.add (item_result);
+                }
+            }
+
+            return results;
+        }
+
+        public async Gee.ArrayList<BatchDownloadResult> download_queued_async (bool clear_after_download = true) {
+            var queued_requests = new Gee.ArrayList<DownloadRequest> ();
+
+            foreach (var request in this.download_queue) {
+                queued_requests.add (request);
+            }
+
+            var results = yield download_many_async (queued_requests);
+
+            if (clear_after_download) {
+                this.download_queue.clear ();
+            }
+
+            return results;
         }
     }
 }
