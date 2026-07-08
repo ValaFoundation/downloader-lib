@@ -4,14 +4,11 @@ downloader_lib_sources = files(
   'result.vala',
 )
 
-vala_testcases_dep = dependency('vala_testcases', fallback: ['vala_testcases', 'vala_testcases_dep'])
-
 vala_downloader_deps = [
   dependency('glib-2.0'),
   dependency('gio-2.0'),
   dependency('libsoup-3.0'),
-  dependency('gee-0.8'),
-  vala_testcases_dep
+  dependency('gee-0.8')
 ]
 
 vala_downloader_lib = shared_library(

@@ -9,10 +9,11 @@ test_sources = files(
   'queue_test.vala',
 )
 
+vala_testcases_dep = dependency('vala_testcases', fallback: ['vala_testcases', 'vala_testcases_dep'])
 
 test_exe = executable('tests',
   test_sources,
-  dependencies: vala_downloader_deps,
+  dependencies: [vala_downloader_deps, vala_testcases_dep],
   link_with: vala_downloader_lib,
   include_directories: [include_directories('../src')],
   vala_args: ['--target-glib=2.58'],

@@ -4,4 +4,4 @@ revision = master
 depth = 1
 
 [provide]
-dependency_name = vala_testcases
+vala_testcases = vala_testcases_dep
